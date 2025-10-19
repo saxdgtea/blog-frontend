@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { ImageOff } from "lucide-react";
 
@@ -23,16 +24,12 @@ export default function BlogsPage() {
   const [selectedTopic, setSelectedTopic] = useState<string>("all");
 
   const searchParams = useSearchParams();
-  const query = searchParams.get("q");
+  const query = searchParams.get("q") ?? "";
 
-  // ✅ Load API base URL from environment variable
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-  useEffect(() => {
-    fetchBlogs();
-  }, [selectedTopic, query]);
-
-  const fetchBlogs = async () => {
+  // ✅ useCallback so useEffect dependency works
+  const fetchBlogs = useCallback(async () => {
     setLoading(true);
     try {
       let endpoint = `${API_URL}/blogs`;
@@ -46,26 +43,30 @@ export default function BlogsPage() {
       const res = await fetch(endpoint);
       if (!res.ok) throw new Error("Failed to fetch blogs");
 
-      const data = await res.json();
-      const blogsData = (data.blogs || data).map((b: any) => ({
-        _id: b._id,
-        slug: b.slug,
-        title: b.title,
-        content: b.content,
-        featured_image: b.featured_image || null,
-        createdAt: b.createdAt,
-        topic: b.topic,
-        views: b.views ?? 0,
-      }));
+      const data: Blog[] =
+        (await res.json()).blogs?.map((b: Blog) => ({
+          _id: b._id,
+          slug: b.slug,
+          title: b.title,
+          content: b.content,
+          featured_image: b.featured_image ?? null,
+          createdAt: b.createdAt,
+          topic: b.topic,
+          views: b.views ?? 0,
+        })) || [];
 
-      setBlogs(blogsData);
+      setBlogs(data);
     } catch (err) {
       console.error(err);
       setError("Error fetching blogs");
     } finally {
       setLoading(false);
     }
-  };
+  }, [API_URL, query, selectedTopic]);
+
+  useEffect(() => {
+    fetchBlogs();
+  }, [fetchBlogs]);
 
   if (loading) return <p className="text-center">Loading blogs...</p>;
   if (error) return <p className="text-red-500 text-center">{error}</p>;
@@ -74,7 +75,6 @@ export default function BlogsPage() {
     <div className="p-6 max-w-7xl mx-auto">
       <h1 className="text-3xl font-bold mb-6">All Blogs</h1>
 
-      {/* Topic Filter (hidden when searching) */}
       {!query && (
         <div className="flex gap-3 mb-6 flex-wrap">
           {["all", "cars", "food", "finance", "technology"].map((topic) => (
@@ -93,7 +93,6 @@ export default function BlogsPage() {
         </div>
       )}
 
-      {/* Blogs Grid */}
       {blogs.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
           {blogs.map((blog) => (
@@ -102,13 +101,13 @@ export default function BlogsPage() {
               href={`/blogs/${encodeURIComponent(blog.slug)}`}
             >
               <div className="bg-white rounded-xl shadow hover:shadow-lg transition p-3 cursor-pointer">
-                {/* Image / Placeholder */}
                 <div className="relative h-48 w-full bg-gray-200 rounded-lg mb-3 flex items-center justify-center overflow-hidden">
                   {blog.featured_image ? (
-                    <img
+                    <Image
                       src={blog.featured_image}
                       alt={blog.title || "Blog featured image"}
-                      className="absolute inset-0 w-full h-full object-cover"
+                      fill
+                      className="object-cover"
                     />
                   ) : (
                     <div className="flex flex-col items-center justify-center text-gray-500">
@@ -118,20 +117,13 @@ export default function BlogsPage() {
                   )}
                 </div>
 
-                {/* Title */}
                 <h2 className="text-lg font-semibold line-clamp-2">
                   {blog.title}
                 </h2>
-
-                {/* Topic */}
                 <p className="text-xs text-green-600 mt-1">{blog.topic}</p>
-
-                {/* Content Preview */}
                 <p className="text-gray-700 text-sm line-clamp-3 mt-2">
                   {blog.content}
                 </p>
-
-                {/* Date */}
                 <p className="text-sm text-gray-500 mt-2">
                   {new Date(blog.createdAt).toLocaleDateString()}
                 </p>
