@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { ImageOff } from "lucide-react";
 
 interface Blog {
@@ -21,7 +22,6 @@ export default function BlogDetailPage() {
   const [relatedBlogs, setRelatedBlogs] = useState<Blog[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ✅ Use environment variable
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
   useEffect(() => {
@@ -31,21 +31,16 @@ export default function BlogDetailPage() {
           `${API_URL}/blogs/slug/${encodeURIComponent(slug as string)}`
         );
         if (!res.ok) throw new Error("Failed to fetch blog");
-        const data = await res.json();
+        const data: Blog = await res.json();
         setBlog(data);
 
-        // ✅ Fetch related blogs by topic
         if (data.topic) {
           const relRes = await fetch(
             `${API_URL}/blogs/topic/${encodeURIComponent(data.topic)}`
           );
           if (relRes.ok) {
-            const relData = await relRes.json();
-            setRelatedBlogs(
-              (relData.blogs || relData).filter(
-                (b: Blog) => b.slug !== data.slug
-              )
-            );
+            const relData: Blog[] = (await relRes.json()).blogs || [];
+            setRelatedBlogs(relData.filter((b) => b.slug !== data.slug));
           }
         }
       } catch (err) {
@@ -63,12 +58,9 @@ export default function BlogDetailPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-10">
-      {/* Blog detail */}
       <article className="mb-16">
-        {/* Title */}
         <h1 className="text-4xl font-bold mb-4">{blog.title}</h1>
 
-        {/* Metadata */}
         <p className="text-sm text-gray-600 mb-6">
           Topic:{" "}
           <span className="font-medium text-green-700">{blog.topic}</span>{" "}
@@ -85,26 +77,27 @@ export default function BlogDetailPage() {
         </p>
 
         {/* Featured Image */}
-        {blog.featured_image ? (
-          <img
-            src={blog.featured_image}
-            alt={blog.title || "Blog featured image"}
-            className="w-full max-h-[450px] object-cover rounded-xl shadow mb-8"
-          />
-        ) : (
-          <div className="h-64 w-full bg-gray-200 rounded-xl flex items-center justify-center text-gray-500 mb-8">
-            <ImageOff className="w-10 h-10 mb-1 opacity-60" />
-            <span className="text-sm">No Image</span>
-          </div>
-        )}
+        <div className="relative w-full h-[450px] mb-8 rounded-xl shadow bg-gray-200">
+          {blog.featured_image ? (
+            <Image
+              src={blog.featured_image}
+              alt={blog.title || "Blog featured image"}
+              fill
+              className="object-cover rounded-xl"
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-gray-500">
+              <ImageOff className="w-10 h-10 mb-1 opacity-60" />
+              <span className="text-sm">No Image</span>
+            </div>
+          )}
+        </div>
 
-        {/* Content */}
         <div className="prose lg:prose-lg max-w-none">
           <p>{blog.content}</p>
         </div>
       </article>
 
-      {/* Related Blogs */}
       {relatedBlogs.length > 0 && (
         <section>
           <h2 className="text-2xl font-semibold mb-6">Related Blogs</h2>
@@ -117,10 +110,11 @@ export default function BlogDetailPage() {
               >
                 <div className="relative h-48 w-full bg-gray-200">
                   {rel.featured_image ? (
-                    <img
+                    <Image
                       src={rel.featured_image}
                       alt={rel.title}
-                      className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform"
+                      fill
+                      className="object-cover group-hover:scale-105 transition-transform"
                     />
                   ) : (
                     <div className="flex flex-col items-center justify-center h-full text-gray-500">

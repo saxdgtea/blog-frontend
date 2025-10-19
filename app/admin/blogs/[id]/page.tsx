@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { FaArrowLeft, FaEdit, FaSave, FaTimes } from "react-icons/fa";
+import Image from "next/image"; // ✅ Import Next.js Image
 
 interface Blog {
   _id: string;
@@ -27,7 +28,6 @@ export default function BlogDetailPage() {
   const [content, setContent] = useState("");
   const [featuredImage, setFeaturedImage] = useState<File | null>(null);
 
-  // ✅ Load from .env.local (safe for production)
   const API_URL =
     process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
@@ -59,14 +59,6 @@ export default function BlogDetailPage() {
       formData.append("topic", topic);
       formData.append("content", content);
       if (featuredImage) formData.append("featured_image", featuredImage);
-
-      console.log("🔹 Sending update to:", `${API_URL}/blogs/${id}`);
-      console.log("🔹 FormData content:", {
-        title,
-        topic,
-        content,
-        hasImage: !!featuredImage,
-      });
 
       const res = await fetch(`${API_URL}/blogs/${id}`, {
         method: "PUT",
@@ -140,12 +132,16 @@ export default function BlogDetailPage() {
             {blog.views} views
           </p>
 
+          {/* ✅ Replace <img> with <Image> */}
           {blog.featured_image && (
-            <img
-              src={blog.featured_image}
-              alt={blog.title}
-              className="w-full h-64 object-cover rounded-lg mb-6"
-            />
+            <div className="relative w-full h-64 mb-6">
+              <Image
+                src={blog.featured_image}
+                alt={blog.title}
+                fill
+                className="object-cover rounded-lg"
+              />
+            </div>
           )}
 
           <div
@@ -180,18 +176,26 @@ export default function BlogDetailPage() {
               setFeaturedImage(e.target.files ? e.target.files[0] : null)
             }
           />
+
+          {/* ✅ Preview with Next.js Image */}
           {featuredImage ? (
-            <img
-              src={URL.createObjectURL(featuredImage)}
-              alt="Preview"
-              className="w-full h-64 object-cover rounded-lg mt-2"
-            />
+            <div className="relative w-full h-64 mt-2">
+              <Image
+                src={URL.createObjectURL(featuredImage)}
+                alt="Preview"
+                fill
+                className="object-cover rounded-lg"
+              />
+            </div>
           ) : blog.featured_image ? (
-            <img
-              src={blog.featured_image}
-              alt={blog.title}
-              className="w-full h-64 object-cover rounded-lg mt-2"
-            />
+            <div className="relative w-full h-64 mt-2">
+              <Image
+                src={blog.featured_image}
+                alt={blog.title}
+                fill
+                className="object-cover rounded-lg"
+              />
+            </div>
           ) : null}
         </div>
       )}

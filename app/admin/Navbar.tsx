@@ -1,13 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {
-  FaHome,
-  FaBook,
-  FaChartBar,
-  FaSearch,
-  FaUserCircle,
-} from "react-icons/fa";
+import { FaHome, FaBook, FaChartBar, FaUserCircle } from "react-icons/fa";
 
 export const Navbar = () => {
   return (

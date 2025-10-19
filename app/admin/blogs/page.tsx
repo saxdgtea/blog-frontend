@@ -1,174 +1,198 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { FaEye, FaEdit, FaTrash } from "react-icons/fa";
+import { useParams, useRouter } from "next/navigation";
+import Image from "next/image";
+import { FaArrowLeft, FaEdit, FaSave, FaTimes } from "react-icons/fa";
 
 interface Blog {
-  id: number;
+  _id: string;
   title: string;
   topic: string;
+  content: string;
+  featured_image?: string;
   views: number;
   created_at: string;
 }
 
-export default function BlogsPage() {
-  const [blogs, setBlogs] = useState<Blog[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [query, setQuery] = useState("");
+export default function BlogDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const router = useRouter();
 
-  // ✅ Always uses .env.local (NEXT_PUBLIC_API_URL)
+  const [blog, setBlog] = useState<Blog | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [editMode, setEditMode] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const [title, setTitle] = useState("");
+  const [topic, setTopic] = useState("");
+  const [content, setContent] = useState("");
+  const [featuredImage, setFeaturedImage] = useState<File | null>(null);
+
   const API_URL =
     process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-
   const token =
     typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
-  const fetchBlogs = async (search?: string) => {
-    try {
-      const url = search
-        ? `${API_URL}/blogs/search?q=${encodeURIComponent(search)}`
-        : `${API_URL}/blogs`;
-
-      console.log("🔹 Fetching blogs from:", url);
-
-      const res = await fetch(url, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-
-      if (!res.ok)
-        throw new Error(
-          `Failed to fetch blogs: ${res.status} ${res.statusText}`
-        );
-
-      const data = await res.json();
-      const arr = Array.isArray(data) ? data : data.blogs || [];
-      setBlogs(arr);
-    } catch (err) {
-      console.error("Error fetching blogs:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchBlogs();
-  }, []);
+    const fetchBlog = async () => {
+      try {
+        const res = await fetch(`${API_URL}/blogs/${id}`);
+        if (!res.ok) throw new Error(`Failed to fetch blog: ${res.status}`);
+        const data = await res.json();
+        setBlog(data);
+        setTitle(data.title);
+        setTopic(data.topic);
+        setContent(data.content);
+      } catch (err) {
+        console.error("Error fetching blog:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (id) fetchBlog();
+  }, [id, API_URL]);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    fetchBlogs(query);
-  };
-
-  const handleDelete = async (id: number) => {
-    if (!confirm("Delete this blog?")) return;
+  const handleUpdate = async () => {
     try {
-      const url = `${API_URL}/blogs/${id}`;
-      console.log("🗑️ Deleting blog at:", url);
+      setSaving(true);
+      const formData = new FormData();
+      formData.append("title", title);
+      formData.append("topic", topic);
+      formData.append("content", content);
+      if (featuredImage) formData.append("featured_image", featuredImage);
 
-      const res = await fetch(url, {
-        method: "DELETE",
+      const res = await fetch(`${API_URL}/blogs/${id}`, {
+        method: "PUT",
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${token || ""}`,
         },
+        body: formData,
       });
 
-      if (!res.ok)
-        throw new Error(
-          `Failed to delete blog: ${res.status} ${res.statusText}`
-        );
-
-      setBlogs((prev) => prev.filter((b) => b.id !== id));
+      if (!res.ok) throw new Error(`Update failed: ${res.status}`);
+      const data = await res.json();
+      setBlog(data);
+      setEditMode(false);
     } catch (err) {
-      console.error("Error deleting blog:", err);
+      console.error("Error updating blog:", err);
+    } finally {
+      setSaving(false);
     }
   };
 
-  if (loading) return <div className="p-6">Loading blogs...</div>;
+  if (loading) return <div className="p-6">Loading blog...</div>;
+  if (!blog) return <div className="p-6 text-red-500">Blog not found.</div>;
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold text-green-600">Manage Blogs</h1>
-        <Link
-          href="/admin/create"
-          className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
-        >
-          + New Blog
-        </Link>
-      </div>
-
-      {/* Search bar */}
-      <form onSubmit={handleSearch} className="mb-4 flex">
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search blogs..."
-          className="w-full px-3 py-2 border rounded-l-lg focus:ring-2 focus:ring-green-500"
-        />
+    <article className="p-6 max-w-4xl mx-auto">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-6">
         <button
-          type="submit"
-          className="bg-green-600 text-white px-4 rounded-r-lg hover:bg-green-700"
+          onClick={() => router.back()}
+          className="flex items-center text-gray-600 hover:text-gray-800"
         >
-          Search
+          <FaArrowLeft className="mr-2" /> Back
         </button>
-      </form>
 
-      {/* Blog table */}
-      <div className="overflow-x-auto">
-        <table className="min-w-full bg-white shadow rounded-lg">
-          <thead className="bg-gray-100 text-left">
-            <tr>
-              <th className="p-3">Title</th>
-              <th className="p-3">Topic</th>
-              <th className="p-3">Views</th>
-              <th className="p-3">Created</th>
-              <th className="p-3 text-center">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {blogs.length ? (
-              blogs.map((blog) => (
-                <tr key={blog.id} className="border-b hover:bg-gray-50">
-                  <td className="p-3">{blog.title}</td>
-                  <td className="p-3">{blog.topic}</td>
-                  <td className="p-3">{blog.views}</td>
-                  <td className="p-3">
-                    {new Date(blog.created_at).toLocaleDateString()}
-                  </td>
-                  <td className="p-3 flex justify-center space-x-2">
-                    <Link
-                      href={`/admin/blogs/${blog.id}`}
-                      className="text-blue-600 hover:text-blue-800"
-                    >
-                      <FaEye />
-                    </Link>
-                    <Link
-                      href={`/admin/blogs/${blog.id}`}
-                      className="text-green-600 hover:text-green-800"
-                    >
-                      <FaEdit />
-                    </Link>
-                    <button
-                      onClick={() => handleDelete(blog.id)}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      <FaTrash />
-                    </button>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={5} className="p-4 text-center text-gray-500">
-                  No blogs found
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        {!editMode ? (
+          <button
+            onClick={() => setEditMode(true)}
+            className="flex items-center bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
+          >
+            <FaEdit className="mr-2" /> Edit Blog
+          </button>
+        ) : (
+          <div className="flex gap-2">
+            <button
+              onClick={handleUpdate}
+              disabled={saving}
+              className={`flex items-center px-4 py-2 rounded-md text-white ${
+                saving
+                  ? "bg-blue-400 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700"
+              }`}
+            >
+              <FaSave className="mr-2" /> {saving ? "Saving..." : "Save"}
+            </button>
+            <button
+              onClick={() => setEditMode(false)}
+              className="flex items-center bg-gray-400 text-white px-4 py-2 rounded-md hover:bg-gray-500"
+            >
+              <FaTimes className="mr-2" /> Cancel
+            </button>
+          </div>
+        )}
       </div>
-    </div>
+
+      {!editMode ? (
+        <>
+          <h1 className="text-3xl font-bold mb-2 text-green-700">
+            {blog.title}
+          </h1>
+          <p className="text-sm text-gray-500 mb-4">
+            {blog.topic} • {new Date(blog.created_at).toLocaleDateString()} •{" "}
+            {blog.views} views
+          </p>
+
+          {blog.featured_image && (
+            <div className="relative w-full h-64 mb-6">
+              <Image
+                src={blog.featured_image}
+                alt={blog.title}
+                fill
+                className="object-cover rounded-lg"
+              />
+            </div>
+          )}
+
+          <div
+            className="prose max-w-none"
+            dangerouslySetInnerHTML={{ __html: blog.content }}
+          />
+        </>
+      ) : (
+        <div className="space-y-4">
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="w-full p-2 border rounded"
+            placeholder="Title"
+          />
+          <input
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            className="w-full p-2 border rounded"
+            placeholder="Topic"
+          />
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            className="w-full p-2 border rounded h-40"
+            placeholder="Content"
+          />
+          <input
+            type="file"
+            onChange={(e) =>
+              setFeaturedImage(e.target.files ? e.target.files[0] : null)
+            }
+          />
+
+          {(featuredImage || blog.featured_image) && (
+            <div className="relative w-full h-64 mt-2">
+              <Image
+                src={
+                  featuredImage
+                    ? URL.createObjectURL(featuredImage)
+                    : blog.featured_image!
+                }
+                alt="Preview"
+                fill
+                className="object-cover rounded-lg"
+              />
+            </div>
+          )}
+        </div>
+      )}
+    </article>
   );
 }

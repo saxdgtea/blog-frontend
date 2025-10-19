@@ -18,9 +18,8 @@ interface Stats {
 export default function StatsPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string>("");
 
-  // Always use environment variable — no localhost fallback
   const API_URL = process.env.NEXT_PUBLIC_API_URL as string;
   const token =
     typeof window !== "undefined" ? localStorage.getItem("token") : null;
@@ -33,10 +32,24 @@ export default function StatsPage() {
         });
 
         if (!res.ok) throw new Error("Failed to fetch stats");
-        const data = await res.json();
-        setStats(data);
-      } catch (err: any) {
-        setError(err.message || "Failed to fetch stats");
+
+        // Type-safe parsing
+        const data = (await res.json()) as Partial<Stats>;
+
+        setStats({
+          totalBlogs: data.totalBlogs ?? 0,
+          totalViews: data.totalViews ?? 0,
+          topBlogs: Array.isArray(data.topBlogs)
+            ? data.topBlogs.map((b) => ({
+                id: b.id,
+                title: b.title,
+                views: b.views ?? 0,
+              }))
+            : [],
+        });
+      } catch (err: unknown) {
+        if (err instanceof Error) setError(err.message);
+        else setError("Failed to fetch stats");
       } finally {
         setLoading(false);
       }

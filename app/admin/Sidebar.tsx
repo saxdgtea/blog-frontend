@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FaHome, FaBook, FaChartBar, FaTimes, FaBars } from "react-icons/fa";
+import { FaHome, FaBook, FaChartBar, FaTimes } from "react-icons/fa";
 
 interface SidebarProps {
   open: boolean;
