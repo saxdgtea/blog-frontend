@@ -14,11 +14,9 @@ export default function CreateBlogPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // ✅ Load API URL safely from .env.local
   const API_URL =
     process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
-  // ✅ Load token from localStorage only in browser
   const token =
     typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
@@ -56,9 +54,11 @@ export default function CreateBlogPage() {
       }
 
       router.push("/admin/blogs");
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Something went wrong";
       console.error("Create blog error:", err);
-      setError(err.message || "Something went wrong");
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -73,7 +73,6 @@ export default function CreateBlogPage() {
       {error && <p className="text-red-500 mb-4">{error}</p>}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Title */}
         <div>
           <label className="block font-medium mb-1">Title</label>
           <input
@@ -86,7 +85,6 @@ export default function CreateBlogPage() {
           />
         </div>
 
-        {/* Topic */}
         <div>
           <label className="block font-medium mb-1">Topic</label>
           <input
@@ -99,7 +97,6 @@ export default function CreateBlogPage() {
           />
         </div>
 
-        {/* Content */}
         <div>
           <label className="block font-medium mb-1">Content</label>
           <textarea
@@ -111,7 +108,6 @@ export default function CreateBlogPage() {
           />
         </div>
 
-        {/* Featured Image */}
         <div>
           <label className="block font-medium mb-1">Featured Image</label>
           <input
@@ -122,7 +118,6 @@ export default function CreateBlogPage() {
           />
         </div>
 
-        {/* Submit */}
         <button
           type="submit"
           disabled={loading}

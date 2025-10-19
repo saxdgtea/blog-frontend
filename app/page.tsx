@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay } from "swiper/modules";
@@ -21,24 +22,20 @@ interface Blog {
 
 export default function HomePage() {
   const [headlines, setHeadlines] = useState<Blog[]>([]);
-  const [related, setRelated] = useState<string[]>([]);
   const [blogs, setBlogs] = useState<Blog[]>([]);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-  useEffect(() => {
-    fetchHeadlines();
-    fetchRelated();
-    fetchBlogs();
-  }, []);
+  const normalizeImageUrl = useCallback(
+    (path?: string | null) => {
+      if (!path) return null;
+      if (path.startsWith("http")) return path;
+      return `${API_URL?.replace(/\/$/, "")}/${path.replace(/^\/+/, "")}`;
+    },
+    [API_URL]
+  );
 
-  const normalizeImageUrl = (path?: string | null) => {
-    if (!path) return null;
-    if (path.startsWith("http")) return path;
-    return `${API_URL?.replace(/\/$/, "")}/${path.replace(/^\/+/, "")}`;
-  };
-
-  const fetchHeadlines = async () => {
+  const fetchHeadlines = useCallback(async () => {
     try {
       const res = await fetch(`${API_URL}/blogs/headlines`);
       const data = await res.json();
@@ -54,23 +51,9 @@ export default function HomePage() {
       console.error("Failed to fetch headlines", err);
       setHeadlines([]);
     }
-  };
+  }, [API_URL, normalizeImageUrl]);
 
-  const fetchRelated = async () => {
-    try {
-      const res = await fetch(`${API_URL}/blogs`);
-      const data = await res.json();
-
-      const blogs = Array.isArray(data) ? data : data.blogs || [];
-      const uniqueTopics = Array.from(new Set(blogs.map((b: Blog) => b.topic)));
-      setRelated(uniqueTopics);
-    } catch (err) {
-      console.error("Failed to fetch related topics", err);
-      setRelated([]);
-    }
-  };
-
-  const fetchBlogs = async () => {
+  const fetchBlogs = useCallback(async () => {
     try {
       const res = await fetch(`${API_URL}/blogs`);
       const data = await res.json();
@@ -87,17 +70,17 @@ export default function HomePage() {
       console.error("Failed to fetch blogs", err);
       setBlogs([]);
     }
-  };
+  }, [API_URL, normalizeImageUrl]);
+
+  useEffect(() => {
+    fetchHeadlines();
+    fetchBlogs();
+  }, [fetchHeadlines, fetchBlogs]);
 
   return (
     <div className="bg-white min-h-screen">
-      <main
-        className="
-          max-w-7xl mx-auto px-4 py-8
-          grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6
-        "
-      >
-        {/* 🔹 Headlines Card */}
+      <main className="max-w-7xl mx-auto px-4 py-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Headlines */}
         <div className="col-span-1 sm:col-span-2 lg:col-span-2 row-span-2 bg-green-50 rounded-2xl shadow-lg p-4">
           <h2 className="text-xl sm:text-2xl font-bold text-green-800 mb-4">
             Headlines
@@ -112,10 +95,11 @@ export default function HomePage() {
                 <SwiperSlide key={blog._id}>
                   <Link href={`/blogs/${encodeURIComponent(blog.slug)}`}>
                     <div className="relative h-48 sm:h-56 md:h-64 rounded-xl overflow-hidden shadow-md">
-                      <img
+                      <Image
                         src={blog.featured_image || "/placeholder.jpg"}
                         alt={blog.title}
-                        className="w-full h-full object-cover"
+                        fill
+                        className="object-cover"
                       />
                       <div className="absolute inset-0 bg-black/40 flex flex-col justify-end p-4">
                         <h3 className="text-lg sm:text-xl font-semibold text-white">
@@ -135,30 +119,7 @@ export default function HomePage() {
           </Swiper>
         </div>
 
-        {/* 🔹 Related Searches Card */}
-        <div className="col-span-1 sm:col-span-2 lg:col-span-2 row-span-2 bg-green-50 rounded-2xl shadow-lg p-4">
-          <h2 className="text-xl sm:text-2xl font-bold text-green-800 mb-4">
-            Related Searches
-          </h2>
-          <div className="space-y-3">
-            {blogs.length > 0 ? (
-              blogs.slice(0, 5).map((blog) => (
-                <Link
-                  key={blog._id}
-                  href={`/blogs/${encodeURIComponent(blog.slug)}`}
-                >
-                  <div className="p-3 sm:p-4 bg-green-100 rounded-xl shadow text-start text-purple-700 font-semibold hover:bg-green-200 transition">
-                    {blog.title}?
-                  </div>
-                </Link>
-              ))
-            ) : (
-              <p className="text-gray-600">No related titles found</p>
-            )}
-          </div>
-        </div>
-
-        {/* 🔹 Blog Grid */}
+        {/* Blog Grid */}
         {blogs.length > 0 ? (
           blogs.map((blog, index) => (
             <Link
@@ -173,9 +134,11 @@ export default function HomePage() {
                 className="flex flex-col h-full"
               >
                 <div className="relative">
-                  <img
+                  <Image
                     src={blog.featured_image || "/placeholder.jpg"}
                     alt={blog.title}
+                    width={400}
+                    height={200}
                     className="w-full h-40 sm:h-48 object-cover rounded-t-2xl"
                   />
                 </div>
