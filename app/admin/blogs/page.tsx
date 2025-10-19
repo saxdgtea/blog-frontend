@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { FaArrowLeft, FaEdit, FaSave, FaTimes } from "react-icons/fa";
@@ -12,7 +12,8 @@ interface Blog {
   content: string;
   featured_image?: string;
   views: number;
-  created_at: string;
+  createdAt?: string;
+  created_at?: string;
 }
 
 export default function BlogDetailPage() {
@@ -34,24 +35,39 @@ export default function BlogDetailPage() {
   const token =
     typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
+  const getImageUrl = useCallback(
+    (path?: string) => {
+      if (!path) return null;
+      if (path.startsWith("http")) return path;
+      return `${API_URL.replace(/\/$/, "")}/${path.replace(/^\/+/, "")}`;
+    },
+    [API_URL]
+  );
+
+  const fetchBlog = useCallback(async () => {
+    if (!id) return;
+    try {
+      const res = await fetch(`${API_URL}/blogs/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token || ""}`,
+        },
+      });
+      if (!res.ok) throw new Error(`Failed to fetch blog: ${res.status}`);
+      const data: Blog = await res.json();
+      setBlog(data);
+      setTitle(data.title);
+      setTopic(data.topic);
+      setContent(data.content);
+    } catch (err) {
+      console.error("Error fetching blog:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [API_URL, id, token]);
+
   useEffect(() => {
-    const fetchBlog = async () => {
-      try {
-        const res = await fetch(`${API_URL}/blogs/${id}`);
-        if (!res.ok) throw new Error(`Failed to fetch blog: ${res.status}`);
-        const data = await res.json();
-        setBlog(data);
-        setTitle(data.title);
-        setTopic(data.topic);
-        setContent(data.content);
-      } catch (err) {
-        console.error("Error fetching blog:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (id) fetchBlog();
-  }, [id, API_URL]);
+    fetchBlog();
+  }, [fetchBlog]);
 
   const handleUpdate = async () => {
     try {
@@ -71,7 +87,7 @@ export default function BlogDetailPage() {
       });
 
       if (!res.ok) throw new Error(`Update failed: ${res.status}`);
-      const data = await res.json();
+      const data: Blog = await res.json();
       setBlog(data);
       setEditMode(false);
     } catch (err) {
@@ -130,14 +146,15 @@ export default function BlogDetailPage() {
             {blog.title}
           </h1>
           <p className="text-sm text-gray-500 mb-4">
-            {blog.topic} • {new Date(blog.created_at).toLocaleDateString()} •{" "}
+            {blog.topic} •{" "}
+            {new Date(blog.createdAt || blog.created_at).toLocaleDateString()} •{" "}
             {blog.views} views
           </p>
 
           {blog.featured_image && (
             <div className="relative w-full h-64 mb-6">
               <Image
-                src={blog.featured_image}
+                src={getImageUrl(blog.featured_image)!}
                 alt={blog.title}
                 fill
                 className="object-cover rounded-lg"
@@ -179,16 +196,20 @@ export default function BlogDetailPage() {
 
           {(featuredImage || blog.featured_image) && (
             <div className="relative w-full h-64 mt-2">
-              <Image
-                src={
-                  featuredImage
-                    ? URL.createObjectURL(featuredImage)
-                    : blog.featured_image!
-                }
-                alt="Preview"
-                fill
-                className="object-cover rounded-lg"
-              />
+              {featuredImage ? (
+                <Image
+                  src={URL.createObjectURL(featuredImage)}
+                  alt="Preview"
+                  className="w-full h-64 object-cover rounded-lg"
+                />
+              ) : (
+                <Image
+                  src={getImageUrl(blog.featured_image)!}
+                  alt="Preview"
+                  fill
+                  className="object-cover rounded-lg"
+                />
+              )}
             </div>
           )}
         </div>
